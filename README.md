@@ -29,3 +29,19 @@ web登陆网盘
 为什么某些PT站点没有速度
 -----------
 因为Ban掉了115的IP,需要进行trakcer转发可以参考https://github.com/mengskysama/BaiduDL-X-NexusPHP
+
+作死向3T注册机（28日前有效
+-----------
+```shell
+#注册；请自备大量ip；保存到reg.txt
+u115_auto_3t.py r
+#登陆手机客户端并领取2T；读取reg.txt，保存到got.txt
+u115_auto_3t.py g
+#二维码登陆领取1T；读取got.txt，保存到got3.tx
+u115_auto_3t.py q
+#检查got.txt是否已获得2T
+u115_auto_3t.py v 2t
+#检查got3.txt是否已获得3T
+u115_auto_3t.py v 3t
+```
+

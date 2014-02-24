@@ -12,8 +12,10 @@ import json
 import re
 import uuid
 import sys
+import os
 import time
 import threading
+import tempfile
 from u115_api import u115_api
 from tempmail_ru import tempmail_ru
 import qrcode
@@ -22,6 +24,7 @@ ANDROID_API_URL = 'http://pro.api.115.com'
 model = 'GT-I9100'
 os_ver = '2.3.4'
 basedir = r'D:\Dev\Python\Workspace\reverse-works\115-android\115-Lixian-API'
+qrtemp = tempfile.gettempdir()
 reload(sys)
 sys.setdefaultencoding('utf-8')
 def print_(str):
@@ -70,7 +73,7 @@ class u115_android_api(u115_api):
         print 'size_total', self.space['size_total']
         return True
 
-    def qrcode(self, fname = r'z:/123.png'):
+    def qrcode(self, fname = r'%s/123.png' % qrtemp):
         #http://115.com/scan/xxxxx
         barinfo = qrcode.scan(fname)['ScanResult'][20:]
         uri = '/android/1.0/scan/prompt?ssoinfo=%s&user_id=%s&source=%s&info=%s' % (
@@ -104,7 +107,7 @@ class u115_23333(u115_api):
             print_('领取成功')
             return 0
 
-    def get_qrcode(self, fname = r'z:/123.png'):
+    def get_qrcode(self, fname = r'%s/123.png' % qrtemp):
         ret = urllib2.urlopen('http://115.com').read()
         self.qr_uid = re.findall('var uid = "([\w\d]+)";', ret)[0]
         self.qr_sign = re.findall('var sign = "([\w\d]+)";', ret)[0]
@@ -123,7 +126,7 @@ class u115_23333(u115_api):
         ret = json.loads(ret)
         url = ret['url']
         s = ret['session_id']
-        print_('已发送查询……')
+        print_('作死线程:已发送查询……')
         #urllib2.urlopen('%s/chat/bridge?namespace=Core.DataAccess&api=ConnectAPI&_t=v4' % url).read()
         ret = urllib2.urlopen('%s/chat/r?VER=2&c=b3&s=%s&_t=%d' % (
                             url, s, time.time()*1000)
@@ -136,17 +139,17 @@ class u115_23333(u115_api):
                 if d['status'] == 1002:
                     key = d['key']
                     break
-        print_('正在二维码登陆')
-        self.http.get('http://passport.115.com/?ct=login&ac=qrcode&key=%s' % key ,setcookie = True)
+        print_('作死线程:正在二维码登陆')
+        self.http.get('http://passport.115.com/?ct=login&ac=qrcode&key=%s' % key)
         self.http.get('http://115.com')
-        print_('已退出')
+        print_('作死线程:已退出')
             #1000 expired 1001 not-ready 1002 done
 
 def batch_reg(cnt = 10, rand_pwd = False):
     if not rand_pwd:
         pwd = 'hahaha115'
     tmr = tempmail_ru()
-    outf = open(basedir + r'\reg.txt','a')
+    outf = open(basedir + r'\reg.txt','a', False)
     for uname in tmr.pool():
         if cnt <= 0 :
             break
@@ -173,7 +176,6 @@ def batch_reg(cnt = 10, rand_pwd = False):
         u115_pc = u115_23333()
         u115_pc.login(uname, pwd)
         outf.write('%s,%s\n' % (uname,pwd))
-        outf.flush()
         #open(basedir + r'\got.txt','a').write(uname)
         cnt -= 1
         print('-'*25)
@@ -182,15 +184,15 @@ def batch_reg(cnt = 10, rand_pwd = False):
 def batch_get():
     acc = open(basedir + r'\reg.txt').readlines()
     done = open(basedir + r'\got.txt').readlines()
-    outf = open(basedir + r'\got.txt','a')
+    outf = open(basedir + r'\got.txt','a', False)
     done = map(lambda x:x.rstrip('\n').rstrip('\r').rstrip(',hahaha115'), done)
     acc = map(lambda x:x.rstrip('\n').rstrip('\r').rstrip(',hahaha115'), acc)
     err_cnt = 0
     for l in acc[::-1]:
         if l in done or not l:
             continue
-        err_cnt += 1
         l = l.split(',')
+        err_cnt += 1
         if len(l) == 1:
             uname, pwd = l[0], 'hahaha115'
         else:
@@ -201,7 +203,6 @@ def batch_get():
             continue
         if u115_android.space['byte_size_total'] > 2210018371829:
             outf.write('%s,%s\n' % (uname,pwd))
-            outf.flush()
             print uname, 'done'
             time.sleep(5)
             continue
@@ -213,7 +214,6 @@ def batch_get():
             code = u115_pc.get_reward()
             if not code or code==200072:
                 outf.write('%s,%s\n' % (uname,pwd))
-                outf.flush()
                 print uname, 'done'
                 time.sleep(5)
                 err_cnt -= 1
@@ -224,21 +224,26 @@ def batch_get():
     outf.close()
     print_('错误:%d个' % err_cnt)
 
-def verify():
-    done = open(basedir + r'\jibun.txt').readlines()
+def verify(check='2t'):
+    if check == '2t':
+        done = open(basedir + r'\got.txt').readlines()
+        sz = 2210018371829
+    else:
+        done = open(basedir + r'\got3.txt').readlines()
+        sz= 3000000000000
     done = map(lambda x:x.rstrip('\n').rstrip('\r'), done)
     for l in done:
         uname,pwd= l.split(',')
         u115_android = u115_android_api()
         u115_android.login(uname, pwd)
-        if u115_android.space['byte_size_total'] <= 2210018371829:
+        if u115_android.space['byte_size_total'] < sz:
             print uname, 'error!'
         time.sleep(2.718281828)
 
 def batch_qr():
     acc = open(basedir + r'\got.txt').readlines()
     done = open(basedir + r'\got3.txt').readlines()
-    outf = open(basedir + r'\got3.txt','a')
+    outf = open(basedir + r'\got3.txt','a', False)
     done = map(lambda x:x.rstrip('\n').rstrip('\r'), done)
     acc = map(lambda x:x.rstrip('\n').rstrip('\r'), acc)
     random.shuffle(acc)
@@ -251,12 +256,11 @@ def batch_qr():
         u115_android.login(uname, pwd)
         if u115_android.space['byte_size_total'] > 3000000000000:
             outf.write('%s,%s\n' % (uname,pwd))
-            outf.flush()
             print uname, 'done'
             time.sleep(5)
             continue
         trytime=3
-        qrpic = r'z:/%s.png' % ''.join(random.sample(string.ascii_letters+string.digits,5))
+        qrpic = '%s/%s.png' % (qrtemp, ''.join(random.sample(string.ascii_letters+string.digits,5)))
         while trytime >0:
             try:
                 u115_pc=u115_23333()
@@ -278,8 +282,8 @@ def batch_qr():
         code=u115_pc.get_reward('get_qr_login_space')
         if not code or code ==200072:
             outf.write('%s,%s\n' % (uname, pwd))
+            os.remove(qrpic)
         print('-'*25)
-    outf.flush()
 
 if __name__ == '__main__':
     if len(sys.argv) > 1:
@@ -288,7 +292,7 @@ if __name__ == '__main__':
         elif sys.argv[1] == 'g':
             batch_get()
         elif sys.argv[1] == 'v':
-            verify()
+            verify(len(sys.argv) >2 and sys.argv[2] or '2t')
         elif sys.argv[1] == 'q':
             batch_qr()
     else:
