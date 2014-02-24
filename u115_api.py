@@ -9,7 +9,11 @@ import string
 import os
 from urllib import urlencode
 from urllib import quote
-import MultipartPostHandler, urllib2, cookielib
+try:
+    import MultipartPostHandler
+except ImportError:
+    pass
+import  urllib2, cookielib
 from hashlib import sha1
 
 from http_request import http_request
@@ -20,10 +24,14 @@ BASE_URL = 'http://115.com'
 PASSPORT_URL = 'http://passport.115.com'
 LOGIN_URL = PASSPORT_URL + '/?ct=login&ac=ajax&is_ssl=1'
 
+def print_(str):
+    print(str.decode('utf-8'))
+
 class u115_api:
 
     def __init__(self):
         self.http = http_request()
+        #self.http = http_request(proxy={'http': '127.0.0.1:23344'})
 
     def setcookie(self, cookie):
         self.http.cookie = cookie
@@ -37,94 +45,95 @@ class u115_api:
         data = urlencode({'login[ssoent]' : 'B1', 'login[version]' : '2.0', 'login[ssoext]': key, 'login[ssoln]':username, 'login[ssopw]':password, 'login[ssovcode]':key, 'login[safe]':'1', 'login[time]':'1', 'login[safe_login]':'0', 'login[goto]':'http://www.115.com/'})
         resp, ret = self.http.post(LOGIN_URL, data, setcookie = True)
         if not resp['status'] == 200:
-            print '115登陆失败:请求失败'
+            print_('115登陆失败:请求失败')
             return
         ret = json.loads(ret)
         if ret.has_key('error_msg'):
-            print '115登陆失败:%s' % ret['err_msg'].encode('utf-8')
+            print_('115登陆失败:%s' % ret['err_msg'])
         else:
-            print '115登陆成功'
+            print_('115登陆成功')
             self.get_uid()
 
-    def siginup(self, email, email_pwd, passwd):
+    def siginup(self, email, email_pwd = None, passwd = None):
         get_url = BASE_URL
         resp, ret = self.http.get(get_url)
         if not resp['status'] == 200:
-            print 'get_sign失败:请求失败'
-            return
+            print_('get_sign失败:请求失败')
+            return False
         #从页面中获取几个参数
         reg = re.compile('\\[\'auth\'\\] = \'(\S+)\'')
         ids = re.findall(reg, ret)
         if len(ids) == 0:
-            print '获取atuh失败:似乎没有找到atuh'
-            return
+            print_('获取atuh失败:似乎没有找到atuh')
+            return False
         auth = quote(str(ids[0]))
         #从页面中获取几个参数
         reg = re.compile('bridgeUrl:"(\S+)"')
         ids = re.findall(reg, ret)
         if len(ids) == 0:
-            print '获取bridgeurl失败:似乎没有找到bridgeurl'
-            return
+            print_('获取bridgeurl失败:似乎没有找到bridgeurl')
+            return False
         bridgeurl = str(ids[0])
         #获取验证码
         resp, ret = self.http.get(PASSPORT_URL + '/?ct=securimage&ac=email', setcookie = True)
         if not resp['status'] == 200:
-            print '获取验证码失败:请求失败'
-            return
+            print_('获取验证码失败:请求失败')
+            return False
         file = open('code.png', 'wb')
         file.write(ret)
         file.close()
 
-        vocode = raw_input("请输入code.png验证码:\n")
+        vocode = raw_input("code.png:\n")
 
         bridgeurl = bridgeurl + '?ajax_cb_key=bridge_bridge_1388735845341'
         resp, ret = self.http.get(bridgeurl)
         if not resp['status'] == 200:
-            print '注册失败:请求失败'
-            return
+            print_('注册失败:请求失败')
+            return False
 
         postdata = 'type=email&email=%s&passwd=%s&code=%s&auth=%s' % (email, passwd, vocode, auth)
-        print bridgeurl
+        #print bridgeurl
         resp, ret = self.http.post(uri = PASSPORT_URL + '/?ct=register&ac=create&is_ajax=1&mini=n&goto=http%3A%2F%2F115.com', postdata = postdata, referer = bridgeurl)
         if not resp['status'] == 200:
-            print '注册失败:请求失败'
-            return
+            print_('注册失败:请求失败')
+            return False
 
         ret = json.loads(ret)
         if ret['state'] == True:
-            print '注册成功:等待验证'
+            print_('注册成功:等待验证')
         else:
             if ret.has_key('err_msg'):
                 print postdata
-                print '注册失败:%s' % ret['err_msg'].encode('utf-8')
-                return
+                print_('注册失败:%s' % ret['err_msg'].encode('utf-8'))
+                return False
         #准备收取邮件
-        time.sleep(2)
-        trytime = 3
-        while(trytime>0):
-            ret = mail_pop3.check_mail_url(email, email_pwd)
-            if ret == None:
-                print '3秒后重试...'
-                trytime = trytime - 1
-                time.sleep(3)
-            else:
-                break
-
-        resp, ret = self.http.get(ret)
-        if not resp['status'] == 200:
-            print '访问激活地址失败:请求失败'
-            return
-        print '注册成功: 帐号:%s 密码:%s' % (email, passwd)
+        if email_pwd:
+            time.sleep(2)
+            trytime = 3
+            while(trytime>0):
+                ret = mail_pop3.check_mail_url(email, email_pwd)
+                if ret == None:
+                    print_('3秒后重试...')
+                    trytime = trytime - 1
+                    time.sleep(3)
+                else:
+                    break
+            resp, ret = self.http.get(ret)
+            if not resp['status'] == 200:
+                print_('访问激活地址失败:请求失败')
+                return
+            print_('注册成功: 帐号:%s 密码:%s' % (email, passwd))
+        return True
 
     def get_uid(self):
         resp, ret = self.http.get(BASE_URL)
         if not resp['status'] == 200:
-            print '获取用户id失败:请求失败'
+            print_('获取用户id失败:请求失败')
             return
         reg = re.compile('USER_ID = \'(\d+)')
         ids = re.findall(reg, ret)
         if len(ids) == 0:
-            print '获取用户id失败:似乎没有找到id'
+            print_('获取用户id失败:似乎没有找到id')
             return
         self.uid = str(ids[0])
 
@@ -132,11 +141,11 @@ class u115_api:
         get_url = BASE_URL + '/?ct=offline&ac=space&_=' + str(time.time())
         resp, ret = self.http.get(get_url)
         if not resp['status'] == 200:
-            print 'get_sign失败:请求失败'
+            print_('get_sign失败:请求失败')
             return
         ret = json.loads(ret)
         if ret.has_key('error_msg'):
-            print 'get_sign失败:%s' % ret['error_msg'].encode('utf-8')
+            print_('get_sign失败:%s' % ret['error_msg'].encode('utf-8'))
             return
         else:
             self.sign = str(ret['sign'])
@@ -179,7 +188,7 @@ class u115_api:
             resp, ret = self.http.post(post_url, post_data)
             if not resp['status'] == 200:
                 self.torrents = None
-                print '获取列表失败:请求失败'
+                print_('获取列表失败:请求失败')
                 return
             ret = json.loads(ret)
             if ret.has_key('page_count'):

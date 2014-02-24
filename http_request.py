@@ -11,21 +11,28 @@ urllib2.socket.setdefaulttimeout(60)
 
 class http_request:
 
-    def __init__(self, cookie = ''):
+    def __init__(self, cookie = '', proxy = None):
             self.cookie = cookie
             self.header = headers_main
+            if proxy:
+                self.opener = urllib2.build_opener(urllib2.ProxyHandler(proxy))
+            else:
+                self.opener = None
 
     def post(self, uri, postdata = '', setcookie = False, referer = None):
         header = self.header
         header.update(headers_post)
         header.update({'Cookie' : self.cookie})
-        if not referer == None:
+        if referer:
             header.update({'Referer' : referer})
         try:
             req = urllib2.Request('%s' % uri, postdata, header)
-            fd = urllib2.urlopen(req)
+            if self.opener:
+                fd = self.opener.open(req)
+            else:
+                fd = urllib2.urlopen(req)
             content = fd.read()
-            if setcookie:
+            if setcookie and 'Set-cookie' in fd.headers:
                 self.cookie = ''
                 #虽然不能很好...但是能用
                 for i in range(0, len(fd.headers["Set-cookie"])):
@@ -40,9 +47,11 @@ class http_request:
             resp = {'status' : 600}
             return resp, ''
 
-    def get(self, uri, setcookie = False):
+    def get(self, uri, setcookie = False, referer = None):
         header = self.header
         header.update({'Cookie' : self.cookie})
+        if referer:
+            header.update({'Referer' : referer})
         try:
             req = urllib2.Request('%s' % uri, headers = header)
             fd = urllib2.urlopen(req)
