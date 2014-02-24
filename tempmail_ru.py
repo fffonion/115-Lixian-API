@@ -41,8 +41,8 @@ class tempmail_ru():
         #none api
         resp, ret = self.http.get('https://temp-mail.ru/option/delete', referer = 'https://temp-mail.ru/')
 
-    def get_mail(self):
-        resp, ret = self.http.get('http://api.temp-mail.ru/request/mail/id/%s/format/json/' % md5(self.addr).hexdigest())
+    def get_mail(self, addr = None):
+        resp, ret = self.http.get('http://api.temp-mail.ru/request/mail/id/%s/format/json/' % md5(addr or self.addr).hexdigest())
         if resp['status'] == 404:
             return []
         ret = json.loads(ret)
@@ -52,8 +52,10 @@ class tempmail_ru():
             return []
 
 if __name__ == '__main__':
-    tmr = tempmail_ru()
-    tmr.new()
-    print tmr.addr
+    # tmr = tempmail_ru()
+    # tmr.new()
+    # print tmr.addr
     # for addr in tmr.pool():
     #     print addr
+    tmr = tempmail_ru()
+    print tmr.get_mail('moko@rainmail.biz')
